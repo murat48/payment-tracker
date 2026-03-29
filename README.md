@@ -23,7 +23,8 @@ A full-stack Web3 payment tracking application built with **Next.js 16**, **Soro
 View on Stellar Lab: [CAOQVXHWV…HZA77U](https://lab.stellar.org/r/testnet/contract/CAOQVXHWVHX7TQMEBG7PXJ72PVHAIAWAYM4QJRWPM6CYVQIIB7HZA77U)
 
 ---
-
+<br>
+<img src="/1p.jpg" alt="" width="400"/><br> <br>
 ## Tech Stack
 
 | Layer | Technology |
