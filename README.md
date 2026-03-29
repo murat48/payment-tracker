@@ -24,7 +24,12 @@ View on Stellar Lab: [CAOQVXHWV…HZA77U](https://lab.stellar.org/r/testnet/cont
 
 ---
 <br>
-<img src="/1p.jpg" alt="" width="400"/><br> <br>
+<img src="/1p.jpg" alt="" width="600"/><br>
+<img src="/1.jpg" alt="" width="600"/><br>
+<img src="/2.jpg" alt="" width="600"/><br>
+<img src="/3.jpg" alt="" width="600"/><br>
+<img src="/5.jpg" alt="" width="600"/><br>
+<img src="/6.jpg" alt="" width="600"/><br>
 ## Tech Stack
 
 | Layer | Technology |
