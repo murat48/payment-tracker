@@ -1,25 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import WalletButton from "@/components/WalletButton";
-import PaymentForm, { QueuedPayment } from "@/components/PaymentForm";
+import PaymentForm from "@/components/PaymentForm";
 import TransactionList, { Transaction } from "@/components/TransactionList";
+import { getPayments } from "@/lib/contract";
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  function handleSend(payments: QueuedPayment[]) {
-    const statuses = ["PENDING", "SUCCESS", "FAILED"] as const;
-    const newTransactions: Transaction[] = payments.map((p) => ({
-      id: crypto.randomUUID(),
-      recipient: p.recipient,
-      amount: p.amount,
-      // Mock status — random for demo
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      timestamp: Date.now(),
-    }));
-    setTransactions((prev) => [...newTransactions, ...prev]);
+  const loadHistory = useCallback(async (address: string) => {
+    try {
+      const payments = await getPayments(address);
+      const historical: Transaction[] = payments.map((p) => ({
+        id: `${p.sender}-${p.recipient}-${p.timestamp}`,
+        recipient: p.recipient,
+        amount: (Number(p.amount) / 1e7).toFixed(7),
+        status: "SUCCESS" as const,
+        timestamp: p.timestamp * 1000,
+      }));
+      setTransactions(historical);
+    } catch {
+      // Contract not deployed yet or NEXT_PUBLIC_CONTRACT_ID not set — skip silently
+    }
+  }, []);
+
+  useEffect(() => {
+    if (walletAddress) {
+      loadHistory(walletAddress);
+    } else {
+      setTransactions([]);
+    }
+  }, [walletAddress, loadHistory]);
+
+  function handleTransactionUpdate(tx: Transaction) {
+    setTransactions((prev) => {
+      const idx = prev.findIndex((t) => t.id === tx.id);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = tx;
+        return updated;
+      }
+      return [tx, ...prev];
+    });
   }
 
   return (
@@ -38,8 +62,8 @@ export default function Home() {
       {/* Main */}
       <main className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <PaymentForm
-          walletConnected={!!walletAddress}
-          onSend={handleSend}
+          walletAddress={walletAddress}
+          onTransactionUpdate={handleTransactionUpdate}
         />
         <TransactionList transactions={transactions} />
       </main>

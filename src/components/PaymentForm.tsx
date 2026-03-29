@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { InsufficientBalanceError } from "@/lib/errors";
+import { sendBatchPaymentWithWallet } from "@/lib/stellar";
+import { recordPayment } from "@/lib/contract";
+import type { Transaction } from "@/components/TransactionList";
 
 export interface QueuedPayment {
   id: string;
@@ -10,20 +13,23 @@ export interface QueuedPayment {
 }
 
 interface PaymentFormProps {
-  walletConnected: boolean;
+  walletAddress: string | null;
   onQueueUpdate?: (queue: QueuedPayment[]) => void;
-  onSend?: (payments: QueuedPayment[]) => void;
+  onTransactionUpdate?: (tx: Transaction) => void;
 }
 
 export default function PaymentForm({
-  walletConnected,
+  walletAddress,
   onQueueUpdate,
-  onSend,
+  onTransactionUpdate,
 }: PaymentFormProps) {
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [queue, setQueue] = useState<QueuedPayment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const walletConnected = !!walletAddress;
 
   function isValidAddress(addr: string) {
     return /^G[A-Z0-9]{55}$/.test(addr);
@@ -62,20 +68,59 @@ export default function PaymentForm({
     onQueueUpdate?.(updated);
   }
 
-  function handleSend() {
-    if (queue.length === 0) return;
-    // Mock balance check — in production query Horizon
-    const total = queue.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    const mockBalance = 100;
-    if (total > mockBalance) {
-      setError(
-        new InsufficientBalanceError(total, mockBalance).message
-      );
-      return;
-    }
-    onSend?.(queue);
+  async function handleSend() {
+    if (queue.length === 0 || !walletAddress) return;
+    setSending(true);
+    setError(null);
+
+    const snapshot = [...queue];
     setQueue([]);
     onQueueUpdate?.([]);
+
+    // Mark all as PENDING before sending
+    const now = Date.now();
+    const pendingTxs: Transaction[] = snapshot.map((p) => ({
+      id: p.id,
+      recipient: p.recipient,
+      amount: p.amount,
+      status: "PENDING" as const,
+      timestamp: now,
+    }));
+    pendingTxs.forEach((tx) => onTransactionUpdate?.(tx));
+
+    try {
+      // Single transaction, single wallet confirmation, no sequence issues
+      const hash = await sendBatchPaymentWithWallet(
+        walletAddress,
+        snapshot.map((p) => ({ recipient: p.recipient, amount: p.amount }))
+      );
+
+      // Record each payment on-chain (non-blocking)
+      snapshot.forEach((p) => {
+        recordPayment(
+          walletAddress,
+          p.recipient,
+          BigInt(Math.round(parseFloat(p.amount) * 1e7))
+        ).catch(() => undefined);
+      });
+
+      pendingTxs.forEach((tx) =>
+        onTransactionUpdate?.({ ...tx, status: "SUCCESS", hash })
+      );
+    } catch (err) {
+      const msg =
+        err instanceof InsufficientBalanceError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Transaction failed";
+      pendingTxs.forEach((tx) =>
+        onTransactionUpdate?.({ ...tx, status: "FAILED" })
+      );
+      setError(msg);
+    }
+
+    setSending(false);
   }
 
   return (
@@ -142,9 +187,10 @@ export default function PaymentForm({
 
           <button
             onClick={handleSend}
-            className="w-full mt-1 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm transition-colors"
+            disabled={sending}
+            className="w-full mt-1 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
           >
-            Send All ({queue.length})
+            {sending ? "Sending…" : `Send All (${queue.length})`}
           </button>
         </div>
       )}

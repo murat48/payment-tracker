@@ -1,0 +1,1 @@
+/home/muratkeskin/stellarbeltprogression/payment-tracker/payment-tracker/contract/target/wasm32-unknown-unknown/release/payment_tracker.wasm: /home/muratkeskin/stellarbeltprogression/payment-tracker/payment-tracker/contract/src/lib.rs

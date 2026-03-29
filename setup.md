@@ -1,27 +1,57 @@
-I'm building a Stellar Payment Tracker with Next.js 14, TypeScript, and Tailwind CSS.
+### Adım 1 — Soroban kontratı için Copilot'a ver
 
-Create the following files:
+```
+Create a Soroban smart contract in Rust for Stellar testnet.
 
-1. `lib/walletKit.ts` — Initialize StellarWalletsKit with Freighter, Lobstr, xBull wallets
+File: `contract/src/lib.rs`
 
-2. `lib/errors.ts` — Handle 3 error types:
-   - WalletNotFoundError (extension not installed)
-   - UserRejectedError (user dismissed connection)
-   - InsufficientBalanceError (not enough XLM)
+Contract name: PaymentTracker
 
-3. `components/WalletButton.tsx` — Connect/disconnect button, show truncated address
+Functions:
+1. record_payment(env: Env, sender: Address, recipient: Address, amount: i128)
+   - requires sender.require_auth()
+   - stores payment with timestamp
 
-4. `components/PaymentForm.tsx` —
-   - Input: recipient address
-   - Input: XLM amount
-   - "Add to Queue" button
-   - List of queued payments
+2. get_payments(env: Env, sender: Address) → Vec<Payment>
+   - returns all payments by sender
 
-5. `components/TransactionList.tsx` —
-   - Show each tx: address, amount, status badge
-   - PENDING (yellow), SUCCESS (green), FAILED (red)
-   - Placeholder explorer link
+Struct Payment:
+- sender: Address
+- recipient: Address
+- amount: i128
+- timestamp: u64
 
-6. `app/page.tsx` — Main page combining all components, dark theme
+Also create `contract/Cargo.toml` with correct Soroban SDK dependencies.
+```
 
-Use mock transaction status for now. No smart contract yet.
+---
+
+### Adım 2 — Frontend entegrasyonu için Copilot'a ver
+
+```
+Extend the Stellar Payment Tracker frontend.
+
+Update or create these files:
+
+1. `lib/contract.ts`
+   - Connect to deployed Soroban contract on testnet
+   - Function: recordPayment(sender, recipient, amount)
+   - Function: getPayments(sender)
+   - Use @stellar/stellar-sdk
+
+2. `lib/stellar.ts`
+   - Function: sendPayment(fromKeypair, toAddress, amount)
+   - Submit real XLM payment on Stellar testnet
+   - Return transaction hash on success
+   - Throw InsufficientBalanceError if balance too low
+
+3. Update `components/PaymentForm.tsx`
+   - "Send All" button triggers real transactions
+   - Each tx: PENDING → SUCCESS or FAILED
+   - Show real tx hash with link to:
+     https://stellar.expert/explorer/testnet/tx/{hash}
+
+4. Update `app/page.tsx`
+   - On load: fetch payment history from contract
+   - CONTRACT_ID from environment variable NEXT_PUBLIC_CONTRACT_ID
+```
